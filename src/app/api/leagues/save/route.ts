@@ -11,6 +11,12 @@ const schema = z.object({
   code: z.string().length(6),
   state: z.unknown().refine(v => JSON.stringify(v).length < 500_000, 'State too large'),
   userName: z.string().min(1).max(100).trim(),
+  // The `updated_at` the client last saw. Its save only lands if the row still
+  // carries that value — see the conditional UPDATE below. Deliberately a loose
+  // string, not z.string().datetime(): PostgREST returns an offset ("+00:00")
+  // that Zod's datetime() rejects by default, and a validation error here would
+  // turn every save into a 422.
+  baseUpdatedAt: z.string().min(1).max(64).optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -40,7 +46,7 @@ export async function POST(req: NextRequest) {
     // detect the first generation without transferring the whole season.
     serviceSupabase
       .from('leagues')
-      .select('owner_id, prev_generated:data->schedule->>generatedAt')
+      .select('owner_id, updated_at, prev_generated:data->schedule->>generatedAt')
       .eq('id', code)
       .single(),
     serviceSupabase.from('user_subscriptions').select(SUB_COLS).eq('user_id', session.user.id).single(),
@@ -92,19 +98,60 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const { error: upsertError } = await serviceSupabase
-    .from('leagues')
-    .upsert({
-      id: code,
-      data: state,
-      updated_at: new Date().toISOString(),
-      updated_by: parsed.data.userName,
-      // Claim ownership on first save if the league is unclaimed
-      ...(!league?.owner_id ? { owner_id: session.user.id } : {}),
-    })
+  // ── The write, guarded against overwriting somebody else's save ──────────────
+  //
+  // This route used to `upsert` the whole blob unconditionally: last writer wins,
+  // full stop. Every editor holds a complete copy of the league in memory, so a
+  // tab that loaded an hour ago would happily post its hour-old season over
+  // everything saved since — no error, no warning, "Synced" in the corner.
+  //
+  // It is not a rare race. YWWM8G lost 6 games on 2026-09-08 between 18:53 and
+  // 21:50 that way, with three people editing and one of them holding four live
+  // sessions at once. The 2026-04-19 "cross-tab sync" fix guarded the other
+  // direction only (the poll overwriting local edits), which is why this survived
+  // it.
+  //
+  // So: only overwrite the exact version the client loaded. `updated_at` is the
+  // version token — Postgres re-checks the WHERE against the locked row, so two
+  // simultaneous saves cannot both match. A mismatch means somebody saved first;
+  // refuse with 409 and let the client show its review banner rather than
+  // silently winning.
+  const now = new Date().toISOString()
+  const row = {
+    data: state,
+    updated_at: now,
+    updated_by: parsed.data.userName,
+    // Claim ownership on first save if the league is unclaimed
+    ...(!league?.owner_id ? { owner_id: session.user.id } : {}),
+  }
 
-  if (upsertError) {
-    return NextResponse.json({ error: 'Failed to save league.' }, { status: 500 })
+  if (!league) {
+    const { error: insertError } = await serviceSupabase.from('leagues').insert({ id: code, ...row })
+    if (insertError) {
+      return NextResponse.json({ error: 'Failed to save league.' }, { status: 500 })
+    }
+  } else {
+    let write = serviceSupabase.from('leagues').update(row).eq('id', code)
+    // ponytail: an absent baseUpdatedAt writes unconditionally, exactly as before.
+    // Browsers holding the pre-fix bundle keep working through the rollout instead
+    // of having every save refused. Once nobody is on the old bundle this can
+    // become mandatory — a missing base would then be a 422.
+    if (parsed.data.baseUpdatedAt) write = write.eq('updated_at', parsed.data.baseUpdatedAt)
+
+    const { data: written, error: updateError } = await write.select('id').maybeSingle()
+    if (updateError) {
+      return NextResponse.json({ error: 'Failed to save league.' }, { status: 500 })
+    }
+    if (!written) {
+      // Zero rows matched: the row moved under us. Nothing was written.
+      return NextResponse.json(
+        {
+          error: 'Someone else saved this league while you were editing. Load their changes, then reapply yours.',
+          conflict: true,
+        },
+        { status: 409 }
+      )
+    }
   }
 
   // Trial clock (migration fd_014): the 14 days start the first time a trial user
@@ -139,5 +186,6 @@ export async function POST(req: NextRequest) {
     if (clockError) console.error('trial clock start failed', clockError)
   }
 
-  return NextResponse.json({ success: true })
+  // The client tracks this as the base for its next save.
+  return NextResponse.json({ success: true, updatedAt: now })
 }

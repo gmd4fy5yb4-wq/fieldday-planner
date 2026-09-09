@@ -15,7 +15,7 @@ const TRIAL_SPORTS_LIMIT = getPlan('trial').sportsLimit
 
 interface Props {
   defaultState: AppState
-  onJoin: (code: string, state: AppState, userName: string, created: boolean) => void
+  onJoin: (code: string, state: AppState, userName: string, created: boolean, updatedAt?: string) => void
 }
 
 type Mode = 'choose' | 'create' | 'join'
@@ -78,7 +78,8 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
     setLoading(true); setError('')
     const result = await loadLeague(code)
     if (result) {
-      onJoin(code, result.data, name.trim(), false)
+      // Pass the version we just loaded — it becomes the base for this tab's saves.
+      onJoin(code, result.data, name.trim(), false, result.updatedAt)
     } else {
       // A wrong-KIND-of-code is the likeliest cause, and 'double-check the code'
       // is useless advice when the code they hold is a perfectly good sign-in

@@ -343,6 +343,51 @@ still be committing the subscription row, so a full boot guarantees a fresh read
 and the invalid-view-token screen in `page.tsx` (the reload is what clears
 `?view=readonly&token=`). Both carry their reason inline. Do not "fix" them.
 
+## Saves are version-checked — never restore the unconditional upsert
+
+`/api/leagues/save` overwrites **only the exact version the client loaded**. The
+client sends the `updated_at` it last saw as `baseUpdatedAt`; the route does
+`.update(...).eq('id', code).eq('updated_at', base)` and returns **409** when zero
+rows match, having written nothing. On 409 the client reloads the league into the
+existing `pendingRemote` review banner.
+
+It used to be a plain `upsert`: last writer wins, silently. Every editor holds the
+whole league in memory, so a tab that loaded an hour ago would post its hour-old
+season over everything saved since and show "Synced" while doing it.
+
+**This is not theoretical.** On 2026-09-08 YWWM8G went 35 games → 29 between 18:53
+and 21:50 UTC. Three people had edit access and one of them (`jonathan@lev-itsb.com`)
+had **four live sessions** across two browsers and two networks — two of them
+refreshing 2 seconds apart at 21:44. The loss was 198→193 items, ~2.5%, so the fd_010
+/ fd_018 guard never fired: **the guard is calibrated for catastrophe and the real
+failure mode is attrition.** Recovered from `fd_league_guard_peak` on 2026-09-09 by
+merging the 2 still-missing games into the live blob — not by restoring the old blob,
+which would have deleted a practice added that morning.
+
+Rules that follow from it:
+
+- **Key the check on `updated_at`, never on the user.** Jon's four tabs are one
+  account; an identity check passes all of them and changes nothing.
+- **Every place this tab adopts a version must set `baseUpdatedAtRef`** — all three
+  load paths, `handleJoin` (the gate passes `result.updatedAt` through), the
+  read-only poll, and *both* banner buttons. Miss one and that tab 409s forever with
+  no way out. **Dismiss deliberately adopts the remote version**: that is what makes
+  it mean "keep mine, overwrite theirs".
+- **A missing `baseUpdatedAt` still writes unconditionally**, so browsers holding the
+  pre-fix bundle keep working through a rollout. Make it mandatory (422) once nobody
+  is on the old bundle.
+- The 2026-04-19 "cross-tab sync" commit (`c8a7c3e`) guarded the **opposite**
+  direction — the poll overwriting local edits — and is often mistaken for having
+  fixed this. It did not.
+
+Related, same shipment: the sync indicator shows the **server's** reason for a failed
+save (`syncError`), because "Save failed — check connection" was also what an expired
+plan, a plan limit and a conflict all looked like. Failed saves retry 3× at 5 s, but
+never a `limitType` (a decision, not a blip) and never a conflict (retrying would just
+conflict again). The unload backup listens on `pagehide` + `visibilitychange`, not
+`beforeunload` alone — iOS Safari discards backgrounded tabs without firing it, which
+is precisely the phone-at-a-field case the backup exists for.
+
 ## The league guard (fd_010 + fd_018)
 
 `trg_leagues_guard_snapshot` on `leagues` writes a recovery point into

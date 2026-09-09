@@ -17,27 +17,42 @@ export async function loadLeague(code: string): Promise<LeagueRecord | null> {
   return { data: data.data as AppState, updatedAt: data.updated_at, updatedBy: data.updated_by }
 }
 
+export interface SaveResult {
+  success: boolean
+  error?: string
+  limitType?: string
+  /** True when the league moved on since `baseUpdatedAt` — nothing was written. */
+  conflict?: boolean
+  /** The row's new `updated_at`; becomes the base for the next save. */
+  updatedAt?: string
+}
+
 /**
  * Save a league through the authenticated server route.
  * The server validates the user's subscription limits before saving.
- * Returns { success: true } or { success: false, error, limitType? }
+ *
+ * `baseUpdatedAt` is the `updated_at` this client last saw. The server only
+ * overwrites that exact version, so a stale tab gets `conflict: true` instead of
+ * quietly deleting whatever everyone else has saved since. Omitting it restores
+ * the old last-writer-wins behaviour, so pass it wherever it is known.
  */
 export async function saveLeague(
   code: string,
   state: AppState,
-  userName: string
-): Promise<{ success: boolean; error?: string; limitType?: string }> {
+  userName: string,
+  baseUpdatedAt?: string
+): Promise<SaveResult> {
   try {
     const res = await fetch('/api/leagues/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: code.toUpperCase(), state, userName }),
+      body: JSON.stringify({ code: code.toUpperCase(), state, userName, baseUpdatedAt }),
     })
     const data = await res.json()
     if (!res.ok) {
-      return { success: false, error: data.error, limitType: data.limitType }
+      return { success: false, error: data.error, limitType: data.limitType, conflict: res.status === 409 }
     }
-    return { success: true }
+    return { success: true, updatedAt: data.updatedAt }
   } catch {
     // Network drop / tab closing mid-request — same contract as a failed save
     return { success: false, error: 'Network error — your changes were not saved. Please try again.' }

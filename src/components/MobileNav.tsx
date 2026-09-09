@@ -15,6 +15,8 @@ interface MobileNavProps {
   onCopyCode: () => void
   codeCopied: boolean
   syncStatus: 'idle' | 'saving' | 'synced' | 'error'
+  /** Server's reason for the last failure; falls back to the generic line. */
+  syncError?: string
   canUndo: boolean
   onUndo: () => void
   onSnapshots: () => void
@@ -138,7 +140,7 @@ const BAR_LABELS: Record<number, string> = { 0: 'Today', 5: 'Calendar', 9: 'Stan
 export default function MobileNav(props: MobileNavProps) {
   const {
     tab, setTab, tabLabels, navOrder, isViewer, canChangeCode, leagueCode, onCopyCode, codeCopied,
-    syncStatus, canUndo, onUndo, onSnapshots, onSignOut, onLeave, isSignedIn, readOnly,
+    syncStatus, syncError, canUndo, onUndo, onSnapshots, onSignOut, onLeave, isSignedIn, readOnly,
     kebabOpen, onKebabChange,
   } = props
 
@@ -233,7 +235,7 @@ export default function MobileNav(props: MobileNavProps) {
                 {!readOnly && (
                   <p className="text-xs text-gray-500">
                     {syncStatus === 'saving' ? 'Saving…'
-                      : syncStatus === 'error' ? 'Save failed — check connection'
+                      : syncStatus === 'error' ? (syncError || 'Save failed — check connection')
                       : 'Synced'}
                   </p>
                 )}
