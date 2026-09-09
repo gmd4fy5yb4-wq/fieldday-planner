@@ -82,6 +82,7 @@ export async function POST(req: NextRequest) {
       data: state,
       updated_at: new Date().toISOString(),
       updated_by: parsed.data.userName,
+      updated_by_id: session.user.id,   // verified saver id, see fd_023
       owner_id: session.user.id,
     })
 

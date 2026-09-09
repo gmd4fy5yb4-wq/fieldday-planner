@@ -380,6 +380,15 @@ Rules that follow from it:
   direction — the poll overwriting local edits — and is often mistaken for having
   fixed this. It did not.
 
+**`updated_by` is a label, `updated_by_id` is the record (fd_023).** `updated_by`
+is a display name the client sends, so it is `'Admin'` for anyone arriving via a
+`?code=` URL (`page.tsx`, `maybeAutoSnapshot(urlCode, s, 'Admin')`) and `'Unknown'`
+for that path's saves — that branch never sets `localUserRef`. It is also
+spoofable. When the 2026-09-08 loss had to be attributed, nothing in the row could
+say who wrote the losing save. `updated_by_id` is stamped from `session.user.id` in
+both `/api/leagues/save` and `/api/leagues/create` and is the one to query. Keep
+showing `updated_by` in the UI — users read names, not UUIDs.
+
 Related, same shipment: the sync indicator shows the **server's** reason for a failed
 save (`syncError`), because "Save failed — check connection" was also what an expired
 plan, a plan limit and a conflict all looked like. Failed saves retry 3× at 5 s, but

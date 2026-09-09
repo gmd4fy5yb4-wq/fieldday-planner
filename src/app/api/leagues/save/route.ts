@@ -121,6 +121,11 @@ export async function POST(req: NextRequest) {
     data: state,
     updated_at: now,
     updated_by: parsed.data.userName,
+    // Who this actually was. `updated_by` above is a display name the client
+    // sends — it is 'Admin' or 'Unknown' for anyone who arrived via a ?code=
+    // URL, and spoofable regardless — so it cannot answer "who wrote this save".
+    // This comes off the verified session (fd_023).
+    updated_by_id: session.user.id,
     // Claim ownership on first save if the league is unclaimed
     ...(!league?.owner_id ? { owner_id: session.user.id } : {}),
   }
