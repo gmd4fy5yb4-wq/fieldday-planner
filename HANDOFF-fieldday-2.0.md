@@ -360,7 +360,14 @@ line 56), which was confirmed before `fd_016` was applied.
 - Cross-org **team** identity — a Force team booked in two leagues at the same hour won't be
   caught in v1 (field identity is solved; team identity isn't).
 - The 500KB save cap on the 1.0 blob.
-- The `fd_010` guard's blind spot for incremental deletion (see above).
+- ~~The `fd_010` guard's blind spot for incremental deletion (see above).~~ **CLOSED
+  2026-08-29 by `fd_018`** (`1d5009c`, live in the Sports DB, all 6 leagues seeded):
+  a per-league high-water copy in `fd_league_guard_peak`, promoted into
+  `league_snapshots` when the league falls below half its peak however many saves
+  it took. Still non-blocking. **Separately**, the 2026-09-08 loss of 6 games was a
+  different failure — concurrent tabs overwriting each other, 2.5% of the blob, far
+  under any size guard — closed 2026-09-09 by `1077280`: the save route now
+  compare-and-swaps on `updated_at` and answers 409 instead of overwriting.
 
 ## Gotchas worth carrying forward
 
