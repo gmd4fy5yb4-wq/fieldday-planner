@@ -6,9 +6,10 @@ import { checkLimits, isWritable } from '@/lib/plans'
 import { generateLeagueCode } from '@/lib/leagueCode'
 import { getSports } from '@/lib/sports'
 import type { AppState } from '@/lib/types'
+import { stateField, parseFailure } from '@/lib/stateSize'
 
 const schema = z.object({
-  state: z.unknown().refine(v => JSON.stringify(v).length < 500_000, 'State too large'),
+  state: stateField,
   userName: z.string().min(1).max(100).trim(),
 })
 
@@ -21,7 +22,8 @@ export async function POST(req: NextRequest) {
 
   const parsed = schema.safeParse(await req.json())
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid request.' }, { status: 422 })
+    const { status, body } = parseFailure(parsed.error)
+    return NextResponse.json(body, { status })
   }
 
   const serviceSupabase = getSupabaseServiceRole()

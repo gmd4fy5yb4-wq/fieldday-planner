@@ -6,10 +6,11 @@ import { saveGate } from '@/lib/plans'
 import { shouldStartTrialClock } from '@/lib/trial'
 import { getSports } from '@/lib/sports'
 import type { AppState } from '@/lib/types'
+import { stateField, parseFailure } from '@/lib/stateSize'
 
 const schema = z.object({
   code: z.string().length(6),
-  state: z.unknown().refine(v => JSON.stringify(v).length < 500_000, 'State too large'),
+  state: stateField,
   userName: z.string().min(1).max(100).trim(),
   // The `updated_at` the client last saw. Its save only lands if the row still
   // carries that value — see the conditional UPDATE below. Deliberately a loose
@@ -28,7 +29,8 @@ export async function POST(req: NextRequest) {
 
   const parsed = schema.safeParse(await req.json())
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid request.' }, { status: 422 })
+    const { status, body } = parseFailure(parsed.error)
+    return NextResponse.json(body, { status })
   }
 
   const code = parsed.data.code.toUpperCase()
