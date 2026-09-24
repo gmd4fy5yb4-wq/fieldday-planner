@@ -7,7 +7,7 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 
-const FROM = 'Greg at Alfred Digital <greg@alfred-digital.com>' // only alfred-digital.com is verified in Resend
+const FROM = 'Greg at Alfred Digital <hello@alfred-digital.com>' // only alfred-digital.com is verified in Resend
 const REPLY_TO = 'help@alfred-digital.com'                    // the copy promises a person reads replies
 
 // Sent-marker lives in app_metadata: admin-only, so a user cannot clear it and
