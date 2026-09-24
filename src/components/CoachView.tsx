@@ -275,7 +275,11 @@ export default function CoachView({ state, viewToken, lastUpdatedAt }: CoachView
         )}
 
         {panel === 'schedule' && (
-          <section className="bg-white rounded-xl border overflow-hidden">
+          /* overflow-clip, not overflow-hidden: -hidden makes this card the date
+             headers' scroll box, so they never stuck to the page and the desktop
+             sm:top-12 (clearing the sticky tab bar) pushed each header 48px down
+             onto its first game. -clip still rounds the corners. */
+          <section className="bg-white rounded-xl border overflow-clip">
             {wholeLeague.length === 0 && (
               <p className="px-4 py-10 text-center text-sm text-gray-500 italic">No upcoming events.</p>
             )}
