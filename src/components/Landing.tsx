@@ -65,74 +65,85 @@ const QUESTIONS = [
 export default function Landing() {
   return (
     <div className="bg-gray-50">
-      {/* ── Nav + hero, one navy block ─────────────────────────────────────── */}
-      <div className="bg-[var(--fd-primary)]">
-        <header className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <span className="w-[34px] h-[34px] rounded-lg bg-white text-[var(--fd-primary)] font-bold text-[15px] flex items-center justify-center">
-              FD
-            </span>
-            <span className="text-white text-lg font-semibold">FieldDay Planner</span>
-          </div>
-          <nav className="flex items-center gap-5 sm:gap-7">
-            <Link href="/pricing" className="hidden sm:inline text-[var(--fd-primary-light)] text-[15px] hover:text-white transition">
-              Pricing
-            </Link>
-            <Link href="/help" className="hidden sm:inline text-[var(--fd-primary-light)] text-[15px] hover:text-white transition">
-              Help
-            </Link>
-            <Link href="/login" className="text-white text-[15px] font-medium hover:opacity-80 transition">
-              Sign in
-            </Link>
+      {/* ── Nav + hero ───────────────────────────────────────────────────────
+          Light ground and the dawn-diamond photo, the same photo alfred-digital.com
+          shows for FieldDay, so the click from the studio's site lands somewhere it
+          recognises. FieldDay keeps its own navy, red and Oswald; buttons are pills
+          to match the studio's system. */}
+      <header className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <span className="w-[34px] h-[34px] rounded-lg bg-[var(--fd-primary)] text-white font-bold text-[15px] flex items-center justify-center">
+            FD
+          </span>
+          <span className="hidden sm:inline text-[var(--fd-primary)] text-lg font-semibold whitespace-nowrap">FieldDay Planner</span>
+        </div>
+        <nav className="flex items-center gap-5 sm:gap-7">
+          <Link href="/pricing" className="hidden sm:inline text-gray-600 text-[15px] hover:text-[var(--fd-primary)] transition">
+            Pricing
+          </Link>
+          <Link href="/help" className="hidden sm:inline text-gray-600 text-[15px] hover:text-[var(--fd-primary)] transition">
+            Help
+          </Link>
+          <Link href="/login" className="text-[var(--fd-primary)] text-[15px] font-medium whitespace-nowrap hover:opacity-80 transition">
+            Sign in
+          </Link>
+          <Link
+            href="/login"
+            className="px-5 py-2.5 rounded-full bg-[var(--fd-accent)] text-white text-[15px] font-semibold whitespace-nowrap hover:bg-[var(--fd-accent-hover)] transition"
+          >
+            Start free
+          </Link>
+        </nav>
+      </header>
+
+      <section className="max-w-6xl mx-auto px-6 pt-8 pb-4 sm:pt-12 grid gap-8 lg:grid-cols-[5fr_7fr] lg:gap-10 lg:items-center">
+        <div>
+          <p className="text-[var(--fd-accent)] text-xs font-semibold uppercase tracking-[0.12em] mb-4">
+            Youth &amp; rec league scheduling
+          </p>
+          <h1 className="text-4xl sm:text-5xl lg:text-[3.4rem] font-bold text-[var(--fd-primary)] leading-[1.05] mb-5 text-balance">
+            Your whole season, scheduled in an afternoon.
+          </h1>
+          <p className="text-lg text-gray-600 leading-relaxed mb-8 max-w-[32em]">
+            FieldDay builds a balanced, conflict-free schedule for every division you run — then keeps
+            coaches and parents looking at the same live copy of it, on one link, all season.
+          </p>
+          <div className="flex flex-wrap items-center gap-4">
             <Link
               href="/login"
-              className="px-4 py-2.5 rounded-[10px] bg-[var(--fd-accent)] text-white text-[15px] font-semibold hover:bg-[var(--fd-accent-hover)] transition"
+              className="px-7 py-3.5 rounded-full bg-[var(--fd-accent)] text-white text-[17px] font-semibold hover:bg-[var(--fd-accent-hover)] transition"
             >
-              Start free
+              Start free — create your league
             </Link>
-          </nav>
-        </header>
-
-        <section className="max-w-6xl mx-auto px-6 pt-12 pb-16 sm:pt-16 sm:pb-24">
-          <div className="max-w-3xl">
-            <p className="text-[var(--fd-primary-muted)] text-xs font-semibold uppercase tracking-[0.12em] mb-5">
-              Youth &amp; rec league scheduling
-            </p>
-            <h1 className="text-4xl sm:text-5xl lg:text-[3.6rem] font-bold text-white leading-[1.05] mb-5 text-balance">
-              Your whole season, scheduled in an afternoon.
-            </h1>
-            <p className="text-lg text-[var(--fd-primary-light)] leading-relaxed mb-8 max-w-[32em]">
-              FieldDay builds a balanced, conflict-free schedule for every division you run — then keeps
-              coaches and parents looking at the same live copy of it, on one link, all season.
-            </p>
-            <div className="flex flex-wrap items-center gap-4">
-              <Link
-                href="/login"
-                className="px-7 py-3.5 rounded-xl bg-[var(--fd-accent)] text-white text-[17px] font-semibold hover:bg-[var(--fd-accent-hover)] transition"
-              >
-                Start free — create your league
+            <span className="text-gray-600 text-[15px]">
+              or{' '}
+              <Link href="/pricing" className="text-[var(--fd-primary)] underline underline-offset-2">
+                see plans
               </Link>
-              <span className="text-[var(--fd-primary-light)] text-[15px]">
-                or{' '}
-                <Link href="/pricing" className="text-white underline underline-offset-2">
-                  see plans
-                </Link>
-              </span>
-            </div>
-            <p className="text-sm text-[var(--fd-primary-muted)] mt-5">
-              14 days free · No credit card · Takes about 2 minutes
-            </p>
+            </span>
           </div>
-        </section>
-      </div>
+          <p className="text-sm text-gray-500 mt-5">
+            14 days free · No credit card · Takes about 2 minutes
+          </p>
+        </div>
+        <div className="relative h-[260px] sm:h-[360px] lg:h-[460px] rounded-[26px] lg:rounded-[30px] overflow-hidden bg-[#e9e5dc]">
+          <Image
+            priority
+            fill
+            sizes="(min-width: 1024px) 640px, 100vw"
+            src="/marketing/hero-diamond.jpg"
+            alt=""
+            className="object-cover object-[50%_60%]"
+          />
+        </div>
+      </section>
 
-      {/* The app itself, straddling the fold — full content width, because that is
-          the width the month grid needs before its chips start truncating. */}
-      <div className="max-w-6xl mx-auto px-6 -mt-12 sm:-mt-16 relative">
+      {/* The app itself — full content width, because that is the width the
+          month grid needs before its chips start truncating. */}
+      <div className="max-w-6xl mx-auto px-6 mt-12 sm:mt-16">
         {/* Desktop: the month grid, the view the app opens on. */}
         <div className="hidden sm:block bg-white rounded-lg border shadow-lg overflow-hidden">
           <Image
-            priority
             sizes="(min-width: 1152px) 1104px, 100vw"
             src="/marketing/calendar.png"
             width={2000}
@@ -302,7 +313,7 @@ export default function Landing() {
           </p>
           <Link
             href="/login"
-            className="inline-block px-8 py-3.5 rounded-xl bg-[var(--fd-accent)] text-white text-[17px] font-semibold hover:bg-[var(--fd-accent-hover)] transition"
+            className="inline-block px-8 py-3.5 rounded-full bg-[var(--fd-accent)] text-white text-[17px] font-semibold hover:bg-[var(--fd-accent-hover)] transition"
           >
             Start free — create your league
           </Link>

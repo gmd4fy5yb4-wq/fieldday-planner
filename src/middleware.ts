@@ -39,6 +39,9 @@ const PUBLIC_PREFIXES = [
                             //  to /login here is exactly the bug class in memory/tech-patterns.
   '/welcome',               // the landing page. `/` rewrites here for logged-out
                             //  visitors, and the rewrite re-enters this matcher.
+  '/marketing/',            // the landing page's screenshots and hero photo (public/marketing).
+                            //  The extension rule below passes .png but not .jpg, so the
+                            //  photo 307'd to /login for every logged-out visitor.
 ]
 
 const PUBLIC_EXTENSIONS = ['.ico', '.png', '.svg', '.webmanifest', '.txt', '.xml']
