@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 
 /* The logged-out front door at `/`. Server-rendered on purpose: it is the page
@@ -53,133 +54,13 @@ const QUESTIONS = [
   },
 ]
 
-/* The product, shown rather than described: the month grid from ScheduleTab,
-   which is the view the app opens on. Everything here mirrors that component —
-   the gray-50 month bar, the uppercase day headers, the date circle (filled
-   navy for today), division-coloured chips carrying a two-letter division badge
-   so they are not distinguishable by hue alone, gray practice chips, and
-   red-tinted blackout days marked "closed". If ScheduleTab's chips or palette
-   change, change them here too: this picture is a claim about the product. */
-
-type Chip = { time: string; badge: string; label: string; tone: 'blue' | 'purple' | 'practice' }
-
-const CHIP_TONE: Record<Chip['tone'], string> = {
-  blue: 'bg-blue-50 text-blue-800 border-blue-200',
-  purple: 'bg-purple-50 text-purple-800 border-purple-200',
-  practice: 'bg-gray-100 text-gray-600 border-gray-200',
-}
-
-const GAME = (time: string, label: string, tone: 'blue' | 'purple'): Chip => ({
-  time,
-  badge: tone === 'blue' ? 'MI' : 'MA',
-  label,
-  tone,
-})
-const PRACTICE = (time: string, team: string): Chip => ({
-  time,
-  badge: 'MI',
-  label: `${team} practice`,
-  tone: 'practice',
-})
-
-/* April 2027 — the 1st is a Thursday, so the grid opens with four blanks. */
-const FIRST_DOW = 4
-const DAYS_IN_MONTH = 30
-const TODAY = 12
-const BLACKOUT = new Set([16])
-
-const EVENTS: Record<number, Chip[]> = {
-  3: [GAME('9:00 AM', 'Comets vs Riptide', 'blue'), GAME('11:00 AM', 'Bandits vs Foxes', 'purple')],
-  7: [PRACTICE('5:30 PM', 'Comets')],
-  10: [GAME('9:00 AM', 'Sluggers vs Comets', 'blue'), GAME('1:00 PM', 'Meteors vs Bandits', 'purple')],
-  14: [PRACTICE('5:30 PM', 'Riptide')],
-  17: [GAME('9:00 AM', 'Riptide vs Bandits', 'blue'), GAME('11:00 AM', 'Foxes vs Meteors', 'purple')],
-  21: [PRACTICE('5:30 PM', 'Sluggers')],
-  24: [GAME('9:00 AM', 'Comets vs Meteors', 'blue'), GAME('11:00 AM', 'Bandits vs Sluggers', 'purple')],
-}
-
-function ScheduleProof() {
-  const cells: (number | null)[] = [
-    ...Array.from({ length: FIRST_DOW }, () => null),
-    ...Array.from({ length: DAYS_IN_MONTH }, (_, i) => i + 1),
-  ]
-  while (cells.length % 7 !== 0) cells.push(null)
-
-  return (
-    <div className="bg-white rounded-lg border shadow-lg overflow-hidden">
-      {/* Month nav */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 border-b">
-        <span className="text-gray-600 text-lg leading-none">‹</span>
-        <h3 className="font-semibold text-gray-800 flex-1 text-center text-[15px]">April 2027</h3>
-        <span className="text-gray-600 text-lg leading-none">›</span>
-        <span className="text-xs text-[var(--fd-primary)] border border-[var(--fd-primary)] rounded-lg px-2 py-1">
-          Today
-        </span>
-      </div>
-
-      {/* Day-of-week headers */}
-      <div className="grid grid-cols-7 border-b bg-gray-50">
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-          <div key={d} className="text-center text-[10px] sm:text-xs font-semibold text-gray-500 py-1.5 sm:py-2 uppercase tracking-wide">
-            {d}
-          </div>
-        ))}
-      </div>
-
-      {/* Grid */}
-      <div className="grid grid-cols-7">
-        {cells.map((day, i) => {
-          const col = i % 7
-          const edge = col < 6 ? 'border-r' : ''
-          if (day === null) {
-            return <div key={`b${i}`} className={`min-h-[74px] sm:min-h-[104px] bg-gray-50 border-b ${edge}`} />
-          }
-          const isBlackout = BLACKOUT.has(day)
-          const events = EVENTS[day] ?? []
-          return (
-            <div key={day} className={`min-h-[74px] sm:min-h-[104px] border-b p-1 sm:p-1.5 flex flex-col ${edge} ${isBlackout ? 'bg-red-50' : ''}`}>
-              <div className="flex items-center justify-between mb-0.5">
-                <span
-                  className={`text-[10px] sm:text-xs font-semibold w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full ${
-                    day === TODAY
-                      ? 'bg-[var(--fd-primary)] text-white'
-                      : isBlackout
-                        ? 'text-red-400'
-                        : 'text-gray-600'
-                  }`}
-                >
-                  {day}
-                </span>
-                {isBlackout && <span className="text-[10px] text-red-300 italic pr-0.5">closed</span>}
-              </div>
-              {/* Below sm the app swaps chips for a crimson count badge — the cells
-                  are a date picker at that width, not a readable schedule. */}
-              {events.length > 0 && (
-                <span className="sm:hidden mx-auto mb-1 flex items-center justify-center w-6 h-6 rounded-full bg-[var(--fd-accent)] text-white text-[11px] font-bold">
-                  {events.length}
-                </span>
-              )}
-              <div className="hidden sm:block space-y-0.5">
-                {events.map(ev => (
-                  <div
-                    key={ev.time + ev.label}
-                    className={`text-[9px] sm:text-[11px] leading-tight px-1 sm:px-1.5 py-0.5 rounded-lg truncate border ${CHIP_TONE[ev.tone]}`}
-                  >
-                    <span className="font-medium">{ev.time}</span>{' '}
-                    <span className="inline-block align-baseline mr-0.5 px-1 rounded bg-black/10 text-[8px] font-bold tracking-wide">
-                      {ev.badge}
-                    </span>
-                    {ev.label}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
+/* The product, shown rather than described — real screenshots of the app,
+   taken from a demo league with invented teams (league NRAMGV, "Riverside Youth
+   Softball"; no real people). Crop every admin shot below the header: the
+   6-character league code there is edit access, and must never be published.
+   Retake them when ScheduleTab or the share view changes: this picture is a
+   claim about the product. The same files back alfred-digital.com's FieldDay
+   page ("See it work."). */
 
 export default function Landing() {
   return (
@@ -248,10 +129,35 @@ export default function Landing() {
       {/* The app itself, straddling the fold — full content width, because that is
           the width the month grid needs before its chips start truncating. */}
       <div className="max-w-6xl mx-auto px-6 -mt-12 sm:-mt-16 relative">
-        <ScheduleProof />
-        <p className="text-center text-sm text-gray-500 mt-4">
-          One month of a 10U softball season: two divisions, weekend games, midweek practices,
-          and a field closure the scheduler worked around.
+        {/* Desktop: the month grid, the view the app opens on. */}
+        <div className="hidden sm:block bg-white rounded-lg border shadow-lg overflow-hidden">
+          <Image
+            priority
+            sizes="(min-width: 1152px) 1104px, 100vw"
+            src="/marketing/calendar.png"
+            width={2000}
+            height={1272}
+            alt="FieldDay's calendar for October: 76 games across 8U, 10U and 12U, each chip showing its time, division and matchup."
+            className="block w-full h-auto"
+          />
+        </div>
+        <p className="hidden sm:block text-center text-sm text-gray-500 mt-4">
+          A fall softball season: three divisions, three fields, 76 games — built by Auto-Schedule in one pass.
+        </p>
+        {/* Phone: a month grid is unreadable at this width, and this is what a
+            parent actually gets here — their team's next game from the share link. */}
+        <div className="sm:hidden mx-auto max-w-[300px] bg-white rounded-[28px] border shadow-lg overflow-hidden">
+          <Image
+            sizes="300px"
+            src="/marketing/parent-next.png"
+            width={780}
+            height={1688}
+            alt="The share link on a phone: the team's next game with the forecast and a Directions button, then every game after it."
+            className="block w-full h-auto"
+          />
+        </div>
+        <p className="sm:hidden text-center text-sm text-gray-500 mt-4">
+          What a parent sees from the share link: their team&rsquo;s next game, no account.
         </p>
       </div>
 
