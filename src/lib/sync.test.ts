@@ -72,6 +72,34 @@ async function main() {
   assert.ok(!denied.conflict, '403 is not a conflict')
   assert.ok(denied.error?.includes('expired'))
 
+  // ── Base-less saves are refused (2026-09-27 YWWM8G wipe) ───────────────────
+  // The server 422s a save with no baseUpdatedAt on an existing league. The
+  // client must surface the reason, not report a conflict (there is no remote
+  // version to merge — the fix is reloading the page).
+  globalThis.fetch = () =>
+    Promise.resolve(
+      new Response(JSON.stringify({ error: 'This page is out of date — reload it to keep saving.' }), {
+        status: 422, headers: { 'Content-Type': 'application/json' },
+      })
+    )
+  const baseless = await saveLeague('ABC123', state, 'Greg')
+  assert.strictEqual(baseless.success, false)
+  assert.ok(!baseless.conflict, '422 is not a conflict')
+  assert.ok(baseless.error?.includes('reload'), 'the reload instruction must reach the UI')
+
+  // createLeague returns the row's updatedAt — it seeds the creator's
+  // baseUpdatedAt, without which their first autosave would be refused.
+  globalThis.fetch = () =>
+    Promise.resolve(
+      new Response(JSON.stringify({ code: 'NEW123', updatedAt: '2026-09-27T23:00:00.000+00:00' }), {
+        status: 200, headers: { 'Content-Type': 'application/json' },
+      })
+    )
+  const created = await createLeague(state, 'Greg')
+  assert.ok('code' in created && created.code === 'NEW123')
+  assert.ok('updatedAt' in created && created.updatedAt === '2026-09-27T23:00:00.000+00:00',
+    'updatedAt must pass through to seed the base')
+
   console.log('sync.test.ts: all assertions passed')
 }
 

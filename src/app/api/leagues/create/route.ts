@@ -77,12 +77,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Could not generate a unique code. Try again.' }, { status: 500 })
   }
 
+  const now = new Date().toISOString()
   const { error: insertError } = await serviceSupabase
     .from('leagues')
     .insert({
       id: code,
       data: state,
-      updated_at: new Date().toISOString(),
+      updated_at: now,
       updated_by: parsed.data.userName,
       updated_by_id: session.user.id,   // verified saver id, see fd_023
       owner_id: session.user.id,
@@ -92,5 +93,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to create league.' }, { status: 500 })
   }
 
-  return NextResponse.json({ code })
+  // `updatedAt` seeds the creator's baseUpdatedAt — without it their first
+  // autosave would have no base, and base-less saves are now refused (422).
+  return NextResponse.json({ code, updatedAt: now })
 }

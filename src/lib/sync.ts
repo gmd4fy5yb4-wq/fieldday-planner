@@ -67,7 +67,7 @@ export async function saveLeague(
 export async function createLeague(
   state: AppState,
   userName: string
-): Promise<{ code: string } | { error: string; limitType?: string }> {
+): Promise<{ code: string; updatedAt?: string } | { error: string; limitType?: string }> {
   try {
     const res = await fetch('/api/leagues/create', {
       method: 'POST',
@@ -78,7 +78,9 @@ export async function createLeague(
     if (!res.ok) {
       return { error: data.error ?? 'Failed to create league.', limitType: data.limitType }
     }
-    return { code: data.code }
+    // updatedAt seeds baseUpdatedAt for the creator's first save — the save
+    // route refuses base-less writes to an existing league.
+    return { code: data.code, updatedAt: data.updatedAt }
   } catch {
     return { error: 'Network error — please check your connection and try again.' }
   }

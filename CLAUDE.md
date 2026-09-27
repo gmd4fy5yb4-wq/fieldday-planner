@@ -373,9 +373,18 @@ Rules that follow from it:
   read-only poll, and *both* banner buttons. Miss one and that tab 409s forever with
   no way out. **Dismiss deliberately adopts the remote version**: that is what makes
   it mean "keep mine, overwrite theirs".
-- **A missing `baseUpdatedAt` still writes unconditionally**, so browsers holding the
-  pre-fix bundle keep working through a rollout. Make it mandatory (422) once nobody
-  is on the old bundle.
+- **A missing `baseUpdatedAt` is now a 422 (2026-09-27)** — the rollout allowance is
+  over. It had to end early: a client whose initial load failed fell back to DEFAULT
+  state and autosaved it base-less, wiping YWWM8G to 0 items (restored from the
+  fd_018 guard snapshot the same evening). "No base" means "never loaded", and a
+  client that never loaded must never write. Consequences threaded through the same
+  day: `/api/leagues/create` returns `updatedAt` to seed the creator's base (a new
+  league's first autosave would otherwise 422), the pagehide backup stores its
+  `base` and the flush sends it (a base-less backup is dropped, not flushed), and
+  the saved-code load path adopts `leagueCode` only AFTER `loadLeague` succeeds —
+  a failed load shows a retry screen, never an editable default bound to a real
+  code. An old bundle still open from before 2026-09-27 gets "reload this page" on
+  its next save; nothing is lost.
 - The 2026-04-19 "cross-tab sync" commit (`c8a7c3e`) guarded the **opposite**
   direction — the poll overwriting local edits — and is often mistaken for having
   fixed this. It did not.
@@ -397,17 +406,25 @@ conflict again). The unload backup listens on `pagehide` + `visibilitychange`, n
 `beforeunload` alone — iOS Safari discards backgrounded tabs without firing it, which
 is precisely the phone-at-a-field case the backup exists for.
 
-## The league guard (fd_010 + fd_018)
+## The league guard (fd_010 + fd_018 + fd_024)
 
 `trg_leagues_guard_snapshot` on `leagues` writes a recovery point into
-`league_snapshots` before a destructive write. It is **non-blocking by design** — it
-never rejects a save, it only guarantees something is recoverable. Two rules:
+`league_snapshots` before a destructive write. It is **non-blocking** for every
+shrink except one — since fd_024 (2026-09-27, after the YWWM8G 213→0 wipe) it
+**REFUSES a write that takes a league of ≥ 10 items to exactly 0**
+(`RAISE 'FD_GUARD_EMPTIED…'`; the save route maps it to a 409 with
+`limitType: 'guard-emptied'`). No in-app action can produce that write — there is
+no "clear league" feature and items are removed one at a time — so the only
+things it blocks are bugs. A deliberate wipe (if one is ever needed) is a manual
+SQL job with the trigger disabled. Everything below 10 items, and every shrink to
+a nonzero count, still passes. Three rules:
 
-- **fd_010** — one write that drops a league below half its previous size.
+- **fd_010** — one write that drops a league below half its previous size → snapshot.
 - **fd_018** (2026-08-29) — a league that ends up below half its **high-water mark**,
   however many saves it took. `public.fd_league_guard_peak` holds one row per league
   with the largest version seen, blob and all; crossing the line promotes that copy
   into `league_snapshots`, once per peak.
+- **fd_024** (2026-09-27) — ≥ 10 items → 0 in one write → refused outright.
 
 fd_018 exists because fd_010 alone is nearly useless against a slow deletion. Replaying
 the 2026-07-28 loss (286 items removed 20 at a time), fd_010 fired only in the last
