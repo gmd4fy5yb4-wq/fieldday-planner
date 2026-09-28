@@ -125,6 +125,11 @@ export default function Home() {
   // their league code, setup tabs and share controls — they have just lost editing.
   const [expired, setExpired] = useState(false)
   const [viewTokenError, setViewTokenError] = useState(false)
+  // The session died under an open tab (refresh-token rotation failure, signed
+  // out elsewhere). Sessions have no idle timeout here — this is the ONLY way an
+  // open tab loses auth, and without the banner the first symptom is saves
+  // failing with a message nobody connects to being logged out.
+  const [signedOut, setSignedOut] = useState(false)
   // The saved league code whose load failed. While set, the app must NOT offer
   // an editable default league — that is the state that wiped YWWM8G.
   const [loadFailed, setLoadFailed] = useState<string | null>(null)
@@ -310,8 +315,14 @@ export default function Home() {
         setSub(sub as SubscriptionRow | null)
       }
     })
-    const { data: { subscription } } = sb.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null)
+      // SIGNED_OUT fires only on a real sign-out or a failed token refresh,
+      // never for the initial no-session state — so it can't false-positive on
+      // first load. A later SIGNED_IN / TOKEN_REFRESHED (e.g. logging back in
+      // from another tab) clears the banner.
+      if (event === 'SIGNED_OUT') setSignedOut(true)
+      else if (session) setSignedOut(false)
     })
     return () => subscription.unsubscribe()
   }, [])
@@ -1039,6 +1050,27 @@ export default function Home() {
       {/* Expired plan — the app stays fully readable, editing is what stops.
           Coaches keep their view-only link working, which is the whole point:
           locking the admin out of a live schedule is what kills the renewal. */}
+      {/* The session died under this open tab. Above the expired banner on
+          purpose: a dead session means saves are failing RIGHT NOW, and logging
+          back in is the only fix — renewing a plan wouldn't help. Read-only
+          share-link viewers never had a session, so no banner for them. */}
+      {signedOut && !isViewer && (
+        <div className="bg-red-50 border-b border-red-200">
+          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
+            <p className="text-sm text-red-900">
+              <span className="font-semibold">You&apos;ve been signed out.</span>{' '}
+              Changes aren&apos;t saving — log in again to pick up right where you left off.
+            </p>
+            <a
+              href={`/login?next=${encodeURIComponent(typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/')}`}
+              className="shrink-0 text-xs font-semibold bg-red-900 text-white rounded-lg px-3 py-2 hover:bg-red-800 transition"
+            >
+              Log in again →
+            </a>
+          </div>
+        </div>
+      )}
+
       {expired && (
         <div className="bg-amber-50 border-b border-amber-200">
           <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
