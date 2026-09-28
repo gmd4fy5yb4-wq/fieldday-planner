@@ -50,6 +50,18 @@ export async function saveLeague(
     })
     const data = await res.json()
     if (!res.ok) {
+      // A 401 means the session died under this tab (sessions have no idle
+      // timeout, so it's a refresh failure or a sign-out elsewhere). The
+      // server's "Not authenticated." is accurate and useless — say what it
+      // means and what fixes it. limitType marks it non-retryable: retrying
+      // without a session just fails identically.
+      if (res.status === 401) {
+        return {
+          success: false,
+          error: 'You’ve been signed out — log in again to keep saving. Your changes are still on this screen.',
+          limitType: 'signed-out',
+        }
+      }
       return { success: false, error: data.error, limitType: data.limitType, conflict: res.status === 409 }
     }
     return { success: true, updatedAt: data.updatedAt }

@@ -87,6 +87,24 @@ async function main() {
   assert.ok(!baseless.conflict, '422 is not a conflict')
   assert.ok(baseless.error?.includes('reload'), 'the reload instruction must reach the UI')
 
+  // ── A dead session must say so ──────────────────────────────────────────────
+  // The server's 401 body is "Not authenticated." — accurate, but nobody at a
+  // field connects that to being signed out. The client translates it and marks
+  // it non-retryable (limitType set): a save without a session fails identically
+  // every time, and the fix is logging in, not waiting 5 seconds.
+  globalThis.fetch = () =>
+    Promise.resolve(
+      new Response(JSON.stringify({ error: 'Not authenticated.' }), {
+        status: 401, headers: { 'Content-Type': 'application/json' },
+      })
+    )
+  const dead = await saveLeague('ABC123', state, 'Greg', 'whatever')
+  assert.strictEqual(dead.success, false)
+  assert.ok(!dead.conflict, '401 is not a conflict')
+  assert.ok(dead.error?.includes('signed out'), 'must say what actually happened')
+  assert.ok(dead.error?.includes('log in'), 'must say what fixes it')
+  assert.ok(dead.limitType, 'must be marked non-retryable')
+
   // createLeague returns the row's updatedAt — it seeds the creator's
   // baseUpdatedAt, without which their first autosave would be refused.
   globalThis.fetch = () =>
