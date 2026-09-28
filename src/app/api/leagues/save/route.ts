@@ -138,15 +138,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to save league.' }, { status: 500 })
     }
   } else {
-    let write = serviceSupabase.from('leagues').update(row).eq('id', code)
-    // ponytail: an absent baseUpdatedAt writes unconditionally, exactly as before.
-    // Browsers holding the pre-fix bundle keep working through the rollout instead
-    // of having every save refused. Once nobody is on the old bundle this can
-    // become mandatory — a missing base would then be a 422.
-    if (parsed.data.baseUpdatedAt) write = write.eq('updated_at', parsed.data.baseUpdatedAt)
+    // The base is MANDATORY on an existing league (the 2026-09-08 rollout
+    // allowance is over). A client with no base is a client that never loaded
+    // this league's data — and on 2026-09-27 exactly such a client (a failed
+    // initial load that fell back to DEFAULT state) posted an empty blob over
+    // all 213 items of YWWM8G, unconditionally. Never again: no base, no write.
+    if (!parsed.data.baseUpdatedAt) {
+      return NextResponse.json(
+        { error: 'This page is out of date — reload it to keep saving. Your league is unchanged.' },
+        { status: 422 }
+      )
+    }
+    const write = serviceSupabase.from('leagues').update(row)
+      .eq('id', code)
+      .eq('updated_at', parsed.data.baseUpdatedAt)
 
     const { data: written, error: updateError } = await write.select('id').maybeSingle()
     if (updateError) {
+      // The fd_024 guard trigger refuses a write that would empty an established
+      // league (>= 10 items -> 0). Surface it as the decision it is, not a 500.
+      if (updateError.message?.includes('FD_GUARD_EMPTIED')) {
+        return NextResponse.json(
+          {
+            error: 'Refused: this save would have emptied the league. Reload to get the current season back.',
+            limitType: 'guard-emptied',  // a decision, not a blip — the client must not retry it
+          },
+          { status: 409 }
+        )
+      }
       return NextResponse.json({ error: 'Failed to save league.' }, { status: 500 })
     }
     if (!written) {

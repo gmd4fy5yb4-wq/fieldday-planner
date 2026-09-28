@@ -64,7 +64,7 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
     const result = await createLeague(initialState, name.trim())
 
     if ('code' in result) {
-      onJoin(result.code, initialState, name.trim(), true)
+      onJoin(result.code, initialState, name.trim(), true, result.updatedAt)
     } else {
       setError(result.error ?? 'Could not create league — check your connection and try again.')
     }
