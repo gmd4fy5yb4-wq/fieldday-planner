@@ -125,6 +125,9 @@ export default function Home() {
   // their league code, setup tabs and share controls — they have just lost editing.
   const [expired, setExpired] = useState(false)
   const [viewTokenError, setViewTokenError] = useState(false)
+  // The saved league code whose load failed. While set, the app must NOT offer
+  // an editable default league — that is the state that wiped YWWM8G.
+  const [loadFailed, setLoadFailed] = useState<string | null>(null)
   const [roLinkCopied, setRoLinkCopied] = useState(false)
   const [showSnapshots, setShowSnapshots] = useState(false)
   const [pendingRemote, setPendingRemote] = useState<{ data: AppState; updatedBy: string; updatedAt: string } | null>(null)
@@ -226,12 +229,16 @@ export default function Home() {
       if (!raw) return
       localStorage.removeItem(key)   // always clear, even if flush fails
       try {
-        const { state: pending, userName: u, at } = JSON.parse(raw) as {
-          state: AppState; userName: string; at: number
+        const { state: pending, userName: u, at, base } = JSON.parse(raw) as {
+          state: AppState; userName: string; at: number; base?: string
         }
-        // Only flush if written within the last 30 minutes (stale after that)
-        if (Date.now() - at < 30 * 60 * 1000) {
-          await saveLeague(code, pending, u || userName)
+        // Only flush if written within the last 30 minutes (stale after that).
+        // The backup's own base rides along: if the league moved on since that
+        // tab died, the flush conflicts instead of overwriting the newer version.
+        // A backup with no base (written before this shipped) is dropped rather
+        // than flushed — the server now refuses base-less saves.
+        if (Date.now() - at < 30 * 60 * 1000 && base) {
+          await saveLeague(code, pending, u || userName, base)
         }
       } catch { /* ignore parse/save errors */ }
     }
@@ -260,7 +267,6 @@ export default function Home() {
     const name = localStorage.getItem('sb-user-name')
     if (code && name) {
       localUserRef.current = name
-      setLeagueCode(code)
       setUserName(name)
       flushUnloadBackup(code, name).then(() =>
         loadLeague(code).then(result => {
@@ -268,10 +274,19 @@ export default function Home() {
             const s = migrateState(result.data)
             setState(s)
             lastSyncedRef.current = stableStringify(s)
+            // Adopt the code only AFTER its data actually arrived. This used to
+            // run before the load — so one failed read (expired session token, a
+            // dropped connection) left the app holding leagueCode + DEFAULT state,
+            // and the autosave effect posted that empty default over the whole
+            // league 800 ms later with nobody touching anything. That is exactly
+            // how YWWM8G went 213 items -> 0 on 2026-09-27.
+            setLeagueCode(code)
             setLastUpdatedBy(result.updatedBy)
             setLastUpdatedAt(result.updatedAt)
             baseUpdatedAtRef.current = result.updatedAt
             maybeAutoSnapshot(code, s, name)
+          } else {
+            setLoadFailed(code)
           }
           setHydrated(true)
         })
@@ -406,7 +421,7 @@ export default function Home() {
       try {
         localStorage.setItem(
           `fd-unload-${leagueCode}`,
-          JSON.stringify({ state, userName: localUserRef.current, at: Date.now() })
+          JSON.stringify({ state, userName: localUserRef.current, at: Date.now(), base: baseUpdatedAtRef.current })
         )
       } catch { /* ignore quota errors */ }
 
@@ -731,6 +746,27 @@ export default function Home() {
               soft route change to the same path would not reliably clear them. */}
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a href="/" className="inline-block mt-2 text-sm text-[var(--fd-primary)] underline hover:text-[var(--fd-primary-dark)]">Go to FieldDay Planner</a>
+        </div>
+      </div>
+    )
+  }
+
+  if (loadFailed) {
+    // The saved league exists but this session couldn't read it. Dead-end here
+    // on purpose: falling through to the join gate (or worse, an editable empty
+    // league) hands the user a default state bound to a real code, and the
+    // autosave would post it over everyone's season. Reload and try again is
+    // the only safe move.
+    return (
+      <div className="min-h-screen bg-[var(--fd-primary)] flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-2xl p-8 max-w-sm w-full text-center space-y-4">
+          <Icon name="alert" className="w-8 h-8 mx-auto text-gray-400" />
+          <h2 className="text-lg font-semibold text-gray-800">Couldn&apos;t load league {loadFailed}</h2>
+          <p className="text-sm text-gray-500">Your league is safe — this device just couldn&apos;t reach it. Check your connection and try again.</p>
+          {/* Hard reload on purpose: it reruns the whole load path, including the
+              auth session refresh that is the most likely thing that failed. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+          <a href="/" className="inline-block mt-2 text-sm text-[var(--fd-primary)] underline hover:text-[var(--fd-primary-dark)]">Try again</a>
         </div>
       </div>
     )
