@@ -1,0 +1,18 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    target-branch: "dev"
+    open-pull-requests-limit: 5
+    # Minor and patch arrive as ONE pull request a week, so routine upkeep is a
+    # single review. Majors are deliberately left ungrouped: those are the ones
+    # that need reading before merging.
+    groups:
+      routine:
+        update-types: ["minor", "patch"]
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
